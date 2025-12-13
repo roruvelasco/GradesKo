@@ -248,51 +248,27 @@ class _AddCourseState extends State<AddCourse> {
   Future<void> _updateExistingCourse() async {
     final existingCourse = widget.courseToEdit!;
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final courseProvider = Provider.of<CourseProvider>(context, listen: false);
     final userId = authProvider.appUser?.userId ?? '';
     final updatedCourse = _createCourse(existingCourse.courseId, userId);
 
-    await FirebaseFirestore.instance
-        .collection('courses')
-        .doc(existingCourse.courseId)
-        .update(updatedCourse.toMap())
-        .timeout(_saveTimeout);
+    // Use provider for offline-first update
+    final error = await courseProvider.updateCourse(updatedCourse);
 
-    await _recalculateGradesAfterEdit(existingCourse.courseId);
-
-    print("Course updated successfully online!");
-  }
-
-  Future<void> _recalculateGradesAfterEdit(String courseId) async {
-    try {
-      final courseProvider = Provider.of<CourseProvider>(
-        context,
-        listen: false,
-      );
-
-      final updatedCourseDoc = await FirebaseFirestore.instance
-          .collection('courses')
-          .doc(courseId)
-          .get()
-          .timeout(_saveTimeout);
-
-      if (updatedCourseDoc.exists) {
-        final updatedCourse = Course.fromMap(updatedCourseDoc.data()!);
-
-        final components = await courseProvider.loadCourseComponents(courseId);
-
-        courseProvider.selectCourse(updatedCourse);
-
-        await courseProvider.updateCourseGrade(
-          components: components.cast<Component?>(),
-        );
-
-        print(
-          "Grades recalculated with updated grading system and ${components.length} components!",
-        );
-      }
-    } catch (e) {
-      print("Error recalculating grades after course edit: $e");
+    if (error != null) {
+      throw Exception(error);
     }
+
+    // Recalculate grades after update
+    final components = await courseProvider.loadCourseComponents(
+      existingCourse.courseId,
+    );
+    courseProvider.selectCourse(updatedCourse);
+    await courseProvider.updateCourseGrade(
+      components: components.cast<Component?>(),
+    );
+
+    print("Course updated successfully!");
   }
 
   bool _validateGradingSystem() {

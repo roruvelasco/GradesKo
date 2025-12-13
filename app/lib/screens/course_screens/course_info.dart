@@ -190,7 +190,7 @@ class _CourseInfoState extends State<CourseInfo> {
   Widget _buildComponentsStream(String courseId, double height, double width) {
     return Consumer<CourseProvider>(
       builder: (context, courseProvider, child) {
-        // First check if we have components in the provider (works offline)
+        // Always use components from the provider (offline-first)
         final providerComponents =
             courseProvider.selectedCourse?.components ?? [];
 
@@ -198,7 +198,7 @@ class _CourseInfoState extends State<CourseInfo> {
         final validComponents =
             providerComponents.whereType<Component>().toList();
 
-        // If we have components from the provider, use them directly
+        // Show components if available
         if (validComponents.isNotEmpty) {
           print(
             '📱 UI: Rendering ${validComponents.length} components from provider',
@@ -214,50 +214,9 @@ class _CourseInfoState extends State<CourseInfo> {
           );
         }
 
-        // Otherwise, fall back to StreamBuilder for initial load
-        print('📱 UI: No components in provider, using StreamBuilder');
-        return StreamBuilder<QuerySnapshot>(
-          stream:
-              FirebaseFirestore.instance
-                  .collection('components')
-                  .where('courseId', isEqualTo: courseId)
-                  .snapshots(),
-          builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting &&
-                !snapshot.hasData) {
-              return Column(
-                children: [
-                  SizedBox(height: height * 0.15),
-                  const Center(child: CircularProgressIndicator()),
-                  SizedBox(height: height * 0.02),
-                  Center(
-                    child: Text(
-                      "Loading components...",
-                      style: GoogleFonts.poppins(
-                        color: Colors.white70,
-                        fontSize: height * 0.016,
-                      ),
-                    ),
-                  ),
-                ],
-              );
-            }
-
-            if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-              return _buildEmptyState(height);
-            }
-
-            return Column(
-              children:
-                  snapshot.data!.docs.map((doc) {
-                    final component = Component.fromMap(
-                      doc.data() as Map<String, dynamic>,
-                    );
-                    return _buildComponentCard(component, height, width);
-                  }).toList(),
-            );
-          },
-        );
+        // No components - show empty state
+        print('📱 UI: No components found, showing empty state');
+        return _buildEmptyState(height);
       },
     );
   }
@@ -316,7 +275,8 @@ class _CourseInfoState extends State<CourseInfo> {
   }
 
   Widget _buildRecordsList(Component component, double height) {
-    // Check if we have records in the component (offline support)
+    // Always use records from the component (offline-first)
+    // Records are embedded in components for offline support
     if (component.records != null && component.records!.isNotEmpty) {
       final recordsList = component.records!;
       final (totalScore, totalPossible) = _calculateTotals(recordsList);
@@ -331,41 +291,8 @@ class _CourseInfoState extends State<CourseInfo> {
       );
     }
 
-    return StreamBuilder<QuerySnapshot>(
-      stream:
-          FirebaseFirestore.instance
-              .collection('records')
-              .where('componentId', isEqualTo: component.componentId)
-              .snapshots(),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting &&
-            !snapshot.hasData) {
-          return _buildLoadingText(height);
-        }
-
-        if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-          return _buildNoRecordsText(height);
-        }
-
-        final recordsList =
-            snapshot.data!.docs
-                .map(
-                  (doc) => Records.fromMap(doc.data() as Map<String, dynamic>),
-                )
-                .toList();
-
-        final (totalScore, totalPossible) = _calculateTotals(recordsList);
-
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            ...recordsList.map((record) => _buildRecordRow(record, height)),
-            if (recordsList.isNotEmpty)
-              _buildTotalSection(totalScore, totalPossible, height, component),
-          ],
-        );
-      },
-    );
+    // No records found - show empty state
+    return _buildNoRecordsText(height);
   }
 
   Widget _buildLoadingText(double height) {

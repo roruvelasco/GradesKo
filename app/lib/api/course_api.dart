@@ -94,6 +94,73 @@ class CourseApi {
     }
   }
 
+  Future<String?> updateCourse(Course course) async {
+    try {
+      print('🔄 [updateCourse] START - ${DateTime.now()}');
+      print('🆔 [updateCourse] Updating courseId: ${course.courseId}');
+
+      print('💾 [updateCourse] Saving to Hive...');
+      final saveStart = DateTime.now();
+
+      // ALWAYS save to local storage first (offline-first)
+      await _localStorage.saveCourse(course);
+
+      final saveEnd = DateTime.now();
+      final saveDuration = saveEnd.difference(saveStart).inMilliseconds;
+      print('✅ [updateCourse] Hive save completed in ${saveDuration}ms');
+
+      print('🔄 [updateCourse] Returning to caller (non-blocking)');
+
+      // Fire-and-forget Firebase sync (non-blocking)
+      if (_connectivityService.isOnline) {
+        print('📡 [updateCourse] Starting background Firebase sync...');
+        // Don't await - sync in background
+        db
+            .collection('courses')
+            .doc(course.courseId)
+            .update(course.toMap())
+            .then((_) {
+              _localStorage.setLastFirebaseSync();
+              print(
+                '✅ [updateCourse] Firebase sync completed: ${course.courseId}',
+              );
+            })
+            .catchError((e) {
+              print('⚠️ [updateCourse] Firebase sync failed, queueing: $e');
+              _offlineQueue.queueOperation(
+                OfflineOperation(
+                  id:
+                      '${course.courseId}_update_${DateTime.now().millisecondsSinceEpoch}',
+                  type: 'updateCourse',
+                  data: {
+                    'courseId': course.courseId,
+                    'updates': course.toMap(),
+                  },
+                  timestamp: DateTime.now(),
+                ),
+              );
+            });
+      } else {
+        // Offline: queue for sync when online
+        print('📴 [updateCourse] Offline - queueing for later sync');
+        await _offlineQueue.queueOperation(
+          OfflineOperation(
+            id:
+                '${course.courseId}_update_${DateTime.now().millisecondsSinceEpoch}',
+            type: 'updateCourse',
+            data: {'courseId': course.courseId, 'updates': course.toMap()},
+            timestamp: DateTime.now(),
+          ),
+        );
+      }
+
+      print('✨ [updateCourse] RETURN SUCCESS - ${DateTime.now()}');
+      return null; // Success
+    } catch (e) {
+      return "Failed to update course: $e";
+    }
+  }
+
   Future<String?> updateCourseGrades({
     required String courseId,
     required double grade,

@@ -203,6 +203,44 @@ class CourseProvider with ChangeNotifier {
     return result;
   }
 
+  Future<String?> updateCourse(Course course) async {
+    print('🎯 [CourseProvider.updateCourse] START - ${DateTime.now()}');
+
+    final apiStart = DateTime.now();
+    final result = await _courseApi.updateCourse(course);
+    final apiEnd = DateTime.now();
+    final apiDuration = apiEnd.difference(apiStart).inMilliseconds;
+
+    print('⏱️ [CourseProvider.updateCourse] API call took ${apiDuration}ms');
+
+    // Emit updated courses list immediately after updating
+    if (result == null && _currentUserId != null) {
+      print(
+        '📤 [CourseProvider.updateCourse] Emitting updated courses to stream...',
+      );
+      final streamStart = DateTime.now();
+
+      final courses =
+          _localStorage
+              .getAllCourses()
+              .where((c) => c.userId == _currentUserId)
+              .toList();
+      _coursesStreamController.add(courses);
+
+      final streamEnd = DateTime.now();
+      final streamDuration = streamEnd.difference(streamStart).inMilliseconds;
+      print(
+        '✅ [CourseProvider.updateCourse] Stream updated in ${streamDuration}ms (${courses.length} courses)',
+      );
+    }
+
+    print('🔔 [CourseProvider.updateCourse] Calling notifyListeners()...');
+    notifyListeners();
+
+    print('✨ [CourseProvider.updateCourse] COMPLETE - ${DateTime.now()}');
+    return result;
+  }
+
   Future<double> calculateCourseGrade({List<Component?>? components}) async {
     final courseComponents = components ?? _selectedCourse?.components ?? [];
     double totalGrade = 0.0;
