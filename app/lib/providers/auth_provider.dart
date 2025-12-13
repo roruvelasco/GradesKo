@@ -18,20 +18,31 @@ class AuthProvider with ChangeNotifier {
 
   AuthProvider() {
     _isLoading = true;
-    _authApi.getUser().listen((user) async {
-      _isLoading = true;
-      notifyListeners();
+    _authApi.getUser().listen(
+      (user) async {
+        _firebaseUser = user;
 
-      _firebaseUser = user;
-
-      if (user != null) {
-        _appUser = await _authApi.getUserInfo(user.uid);
-      } else {
+        if (user != null) {
+          try {
+            _appUser = await _authApi.getUserInfo(user.uid);
+          } catch (e) {
+            print('Error fetching user info: $e');
+            _appUser = null;
+          }
+        } else {
+          _appUser = null;
+        }
+        _isLoading = false;
+        notifyListeners();
+      },
+      onError: (error) {
+        print('Auth stream error: $error');
+        _isLoading = false;
+        _firebaseUser = null;
         _appUser = null;
-      }
-      _isLoading = false;
-      notifyListeners();
-    });
+        notifyListeners();
+      },
+    );
   }
 
   Future<void> fetchUser() async {

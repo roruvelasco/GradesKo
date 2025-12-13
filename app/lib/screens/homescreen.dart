@@ -22,7 +22,7 @@ class Homescreen extends StatefulWidget {
 class _HomescreenState extends State<Homescreen> {
   @override
   Widget build(BuildContext context) {
-    final size = MediaQuery.of(context).size;
+    final size = MediaQuery.sizeOf(context);
     final width = size.width;
     final height = size.height;
 
@@ -136,18 +136,14 @@ class _HomescreenState extends State<Homescreen> {
         }
 
         final courses = courseSnapshot.data!.docs;
-        final width = MediaQuery.of(context).size.width;
+        final width = MediaQuery.sizeOf(context).width;
         return Column(
           children:
               courses.map((doc) {
                 final course = courseModel.Course.fromMap(
                   doc.data() as Map<String, dynamic>,
                 );
-                return _buildCourseCard(
-                  course,
-                  height,
-                  width,
-                ); 
+                return _buildCourseCard(course, height, width);
               }).toList(),
         );
       },
@@ -169,7 +165,6 @@ class _HomescreenState extends State<Homescreen> {
         children: [
           ListTile(
             onTap: () {
-             
               Provider.of<CourseProvider>(
                 context,
                 listen: false,
@@ -206,8 +201,7 @@ class _HomescreenState extends State<Homescreen> {
             contentPadding: EdgeInsets.fromLTRB(
               height * 0.020,
               height * 0.010,
-              height *
-                  0.080, 
+              height * 0.080,
               height * 0.010,
             ),
             title: Text(
@@ -224,7 +218,7 @@ class _HomescreenState extends State<Homescreen> {
             ),
             subtitle: _buildCourseSubtitle(course, height),
           ),
-          _buildActionButtons(height, width, course), 
+          _buildActionButtons(height, width, course),
         ],
       ),
     );
@@ -274,11 +268,10 @@ class _HomescreenState extends State<Homescreen> {
           TextSpan(
             text:
                 course.numericalGrade != null
-                    ? course.numericalGrade!
-                        .toString() 
+                    ? course.numericalGrade!.toString()
                     : "No grade yet",
             style: GoogleFonts.poppins(
-              color: Colors.white70, 
+              color: Colors.white70,
               fontWeight: FontWeight.bold,
               fontSize: height * 0.014,
             ),

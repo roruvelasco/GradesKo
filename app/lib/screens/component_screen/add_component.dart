@@ -1,8 +1,10 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:gradecalculator/components/custom_text_form_field.dart';
+import 'package:gradecalculator/utils/app_text_styles.dart';
 import 'package:gradecalculator/components/customsnackbar.dart';
 import 'package:gradecalculator/models/records.dart';
 import 'package:gradecalculator/models/components.dart';
@@ -11,9 +13,9 @@ import 'package:provider/provider.dart';
 import 'package:gradecalculator/providers/course_provider.dart';
 
 class AddComponent extends StatefulWidget {
-  final Component? componentToEdit; 
+  final Component? componentToEdit;
 
-  const AddComponent({super.key, this.componentToEdit}); 
+  const AddComponent({super.key, this.componentToEdit});
 
   @override
   State<AddComponent> createState() => _AddComponentState();
@@ -30,28 +32,25 @@ class _AddComponentState extends State<AddComponent> {
 
   final _formKey = GlobalKey<FormState>();
 
-  bool get isEditMode => widget.componentToEdit != null; 
+  bool get isEditMode => widget.componentToEdit != null;
 
   @override
   void initState() {
     super.initState();
 
     if (isEditMode) {
-      _loadExistingData(); 
+      _loadExistingData();
     } else {
-      _addRecord(); 
+      _addRecord();
     }
   }
-
 
   void _loadExistingData() async {
     final component = widget.componentToEdit!;
 
-   
     componentNameController.text = component.componentName;
     weightController.text = component.weight.toString();
 
-   
     final recordsSnapshot =
         await FirebaseFirestore.instance
             .collection('records')
@@ -65,7 +64,6 @@ class _AddComponentState extends State<AddComponent> {
       totalControllers.clear();
 
       if (recordsSnapshot.docs.isEmpty) {
-       
         _addRecord();
       } else {
         // Load existing records
@@ -147,19 +145,20 @@ class _AddComponentState extends State<AddComponent> {
     });
   }
 
-
   Future<void> _saveComponentToFirestore() async {
     final courseProvider = Provider.of<CourseProvider>(context, listen: false);
 
-    
-    final recordsData = records.map((record) {
-      final recordId = record.recordId;
-      return {
-        'name': nameControllers[recordId]?.text ?? '',
-        'score': double.tryParse(scoreControllers[recordId]?.text ?? '0') ?? 0.0,
-        'total': double.tryParse(totalControllers[recordId]?.text ?? '0') ?? 0.0,
-      };
-    }).toList();
+    final recordsData =
+        records.map((record) {
+          final recordId = record.recordId;
+          return {
+            'name': nameControllers[recordId]?.text ?? '',
+            'score':
+                double.tryParse(scoreControllers[recordId]?.text ?? '0') ?? 0.0,
+            'total':
+                double.tryParse(totalControllers[recordId]?.text ?? '0') ?? 0.0,
+          };
+        }).toList();
 
     try {
       if (isEditMode) {
@@ -186,7 +185,7 @@ class _AddComponentState extends State<AddComponent> {
     if (records.isEmpty) return false;
     for (var record in records) {
       final recordId = record.recordId;
-      
+
       final score = scoreControllers[recordId]?.text.trim() ?? '';
       final total = totalControllers[recordId]?.text.trim() ?? '';
       if (score.isEmpty || total.isEmpty) {
@@ -198,11 +197,12 @@ class _AddComponentState extends State<AddComponent> {
 
   @override
   Widget build(BuildContext context) {
-    final size = MediaQuery.of(context).size;
+    final size = MediaQuery.sizeOf(context);
     final height = size.height;
     final width = size.width;
 
     return Scaffold(
+      resizeToAvoidBottomInset: true,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
@@ -213,7 +213,7 @@ class _AddComponentState extends State<AddComponent> {
           child: Padding(
             padding: EdgeInsets.symmetric(horizontal: width * 0.08),
             child: Form(
-              key: _formKey, 
+              key: _formKey,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -221,7 +221,7 @@ class _AddComponentState extends State<AddComponent> {
                   SizedBox(height: height * 0.03),
                   _buildComponentFields(height),
                   SizedBox(height: height * 0.025),
-                  _buildRecordsSystem(height),
+                  RepaintBoundary(child: _buildRecordsSystem(height)),
                   SizedBox(height: height * 0.015),
                   _buildSaveButton(size),
                   SizedBox(height: height * 0.02),
@@ -404,6 +404,7 @@ class _AddComponentState extends State<AddComponent> {
               controller: nameControllers[recordId]!,
               height: height,
               keyboardType: TextInputType.text,
+              debugLabel: 'name-$recordId-$index',
             ),
           ),
           _buildSeparator(" ", height),
@@ -413,6 +414,7 @@ class _AddComponentState extends State<AddComponent> {
               controller: scoreControllers[recordId]!,
               height: height,
               keyboardType: TextInputType.number,
+              debugLabel: 'score-$recordId-$index',
             ),
           ),
           _buildSeparator(" ", height),
@@ -422,6 +424,7 @@ class _AddComponentState extends State<AddComponent> {
               controller: totalControllers[recordId]!,
               height: height,
               keyboardType: TextInputType.number,
+              debugLabel: 'total-$recordId-$index',
             ),
           ),
           SizedBox(width: height * 0.01),
@@ -435,12 +438,22 @@ class _AddComponentState extends State<AddComponent> {
     required TextEditingController controller,
     required double height,
     TextInputType? keyboardType,
+    String? debugLabel,
   }) {
+    if (kDebugMode) {
+      debugPrint(
+        '[AddComponent] TextField rebuild ${debugLabel ?? controller.hashCode}',
+      );
+    }
     return TextFormField(
       controller: controller,
       keyboardType: keyboardType ?? TextInputType.text,
       textAlign: TextAlign.center,
-      style: GoogleFonts.poppins(fontSize: height * 0.018),
+      style: AppTextStyles.withSize(AppTextStyles.inputText, height * 0.018),
+      // Performance optimizations
+      autocorrect: false,
+      enableSuggestions: false,
+      maxLines: 1,
       decoration: InputDecoration(
         filled: true,
         fillColor: Colors.white,
@@ -536,8 +549,8 @@ class _AddComponentState extends State<AddComponent> {
             await _saveComponentToFirestore();
 
             if (mounted) {
-              Navigator.of(context).pop(); 
-              Navigator.of(context).pop(); 
+              Navigator.of(context).pop();
+              Navigator.of(context).pop();
             }
           },
           style: ElevatedButton.styleFrom(

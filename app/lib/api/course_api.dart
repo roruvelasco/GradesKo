@@ -3,16 +3,23 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:gradecalculator/models/course.dart';
 import 'package:gradecalculator/models/components.dart';
 import 'package:gradecalculator/models/records.dart';
+import 'package:gradecalculator/services/connectivity_service.dart';
+import 'package:gradecalculator/services/offline_queue_service.dart';
+import 'package:uuid/uuid.dart';
 
 class CourseApi {
   static const Duration _firestoreTimeout = Duration(seconds: 10);
   final FirebaseFirestore db = FirebaseFirestore.instance;
+  final ConnectivityService _connectivityService = ConnectivityService();
+  final OfflineQueueService _offlineQueue = OfflineQueueService();
+  final Uuid _uuid = const Uuid();
 
   Future<String?> addCourse(Course course) async {
     try {
-      final docRef = db.collection('courses').doc();
+      // Generate conflict-free ID using UUID
+      final courseId = 'course_${_uuid.v4()}';
       final courseWithId = Course(
-        courseId: docRef.id,
+        courseId: courseId,
         userId: course.userId,
         courseName: course.courseName,
         courseCode: course.courseCode,
@@ -25,7 +32,24 @@ class CourseApi {
         grade: course.grade,
         numericalGrade: course.numericalGrade,
       );
-      await docRef.set(courseWithId.toMap());
+
+      if (_connectivityService.isOnline) {
+        // Online: Save directly to Firestore
+        await db.collection('courses').doc(courseId).set(courseWithId.toMap());
+        print('✅ Course saved online: $courseId');
+      } else {
+        // Offline: Queue the operation
+        await _offlineQueue.queueOperation(
+          OfflineOperation(
+            id: courseId,
+            type: 'course',
+            data: courseWithId.toMap(),
+            timestamp: DateTime.now(),
+          ),
+        );
+        print('📴 Course queued for offline sync: $courseId');
+      }
+      
       return null; // Success
     } catch (e) {
       return "Failed to add course: $e";
@@ -39,15 +63,34 @@ class CourseApi {
     required bool wasRounded,
   }) async {
     try {
-      await db
-          .collection('courses')
-          .doc(courseId)
-          .update({
-            'grade': grade,
-            'numericalGrade': numericalGrade,
-            'wasRounded': wasRounded,
-          })
-          .timeout(_firestoreTimeout);
+      final updates = {
+        'grade': grade,
+        'numericalGrade': numericalGrade,
+        'wasRounded': wasRounded,
+      };
+
+      if (_connectivityService.isOnline) {
+        await db
+            .collection('courses')
+            .doc(courseId)
+            .update(updates)
+            .timeout(_firestoreTimeout);
+        print('✅ Course grades updated online: $courseId');
+      } else {
+        await _offlineQueue.queueOperation(
+          OfflineOperation(
+            id: '${courseId}_grades_${DateTime.now().millisecondsSinceEpoch}',
+            type: 'updateCourse',
+            data: {
+              'courseId': courseId,
+              'updates': updates,
+            },
+            timestamp: DateTime.now(),
+          ),
+        );
+        print('📴 Course grades queued for offline sync: $courseId');
+      }
+      
       return null; // Success
     } catch (e) {
       return "Failed to update course grades: $e";
@@ -79,8 +122,8 @@ class CourseApi {
     required List<Map<String, dynamic>> recordsData,
   }) async {
     try {
-      final componentDocRef = db.collection('components').doc();
-      final componentId = componentDocRef.id;
+      // Generate conflict-free ID using UUID
+      final componentId = 'component_${_uuid.v4()}';
 
       final component = Component(
         componentId: componentId,
@@ -96,8 +139,7 @@ class CourseApi {
             final name = (data['name'] as String).trim();
 
             return Records(
-              recordId:
-                  DateTime.now().millisecondsSinceEpoch.toString() + '_$index',
+              recordId: 'record_${_uuid.v4()}',
               componentId: componentId,
               name: name.isEmpty ? (index + 1).toString() : name,
               score: data['score'] as double,
@@ -105,19 +147,37 @@ class CourseApi {
             );
           }).toList();
 
-      await componentDocRef.set(component.toMap());
+      if (_connectivityService.isOnline) {
+        // Online: Save directly to Firestore
+        await db.collection('components').doc(componentId).set(component.toMap());
 
-      final batch = db.batch();
-      for (final record in records) {
-        final recordDocRef = db.collection('records').doc(record.recordId);
-        batch.set(recordDocRef, record.toMap());
+        final batch = db.batch();
+        for (final record in records) {
+          final recordDocRef = db.collection('records').doc(record.recordId);
+          batch.set(recordDocRef, record.toMap());
+        }
+        await batch.commit();
+        print('✅ Component saved online: $componentId');
+      } else {
+        // Offline: Queue the operation
+        await _offlineQueue.queueOperation(
+          OfflineOperation(
+            id: componentId,
+            type: 'component',
+            data: {
+              'component': component.toMap(),
+              'records': records.map((r) => r.toMap()).toList(),
+            },
+            timestamp: DateTime.now(),
+          ),
+        );
+        print('📴 Component queued for offline sync: $componentId');
       }
-      await batch.commit();
 
-      return component; // ✅ Return the created component
+      return component;
     } catch (e) {
       print("Error creating component: $e");
-      return null; // ✅ Return null on error
+      return null;
     }
   }
 
@@ -136,23 +196,6 @@ class CourseApi {
         courseId: courseId,
       );
 
-      await db
-          .collection('components')
-          .doc(componentId)
-          .update(updatedComponent.toMap());
-
-      final existingRecordsSnapshot =
-          await db
-              .collection('records')
-              .where('componentId', isEqualTo: componentId)
-              .get();
-
-      final batch = db.batch();
-
-      for (final doc in existingRecordsSnapshot.docs) {
-        batch.delete(doc.reference);
-      }
-
       final records =
           recordsData.asMap().entries.map((entry) {
             final index = entry.key;
@@ -160,8 +203,7 @@ class CourseApi {
             final name = (data['name'] as String).trim();
 
             return Records(
-              recordId:
-                  DateTime.now().millisecondsSinceEpoch.toString() + '_$index',
+              recordId: 'record_${_uuid.v4()}',
               componentId: componentId,
               name: name.isEmpty ? (index + 1).toString() : name,
               score: data['score'] as double,
@@ -169,12 +211,48 @@ class CourseApi {
             );
           }).toList();
 
-      for (final record in records) {
-        final recordDocRef = db.collection('records').doc(record.recordId);
-        batch.set(recordDocRef, record.toMap());
-      }
+      if (_connectivityService.isOnline) {
+        // Online: Update directly in Firestore
+        await db
+            .collection('components')
+            .doc(componentId)
+            .update(updatedComponent.toMap());
 
-      await batch.commit();
+        final existingRecordsSnapshot =
+            await db
+                .collection('records')
+                .where('componentId', isEqualTo: componentId)
+                .get();
+
+        final batch = db.batch();
+
+        for (final doc in existingRecordsSnapshot.docs) {
+          batch.delete(doc.reference);
+        }
+
+        for (final record in records) {
+          final recordDocRef = db.collection('records').doc(record.recordId);
+          batch.set(recordDocRef, record.toMap());
+        }
+
+        await batch.commit();
+        print('✅ Component updated online: $componentId');
+      } else {
+        // Offline: Queue the operation
+        await _offlineQueue.queueOperation(
+          OfflineOperation(
+            id: '${componentId}_update_${DateTime.now().millisecondsSinceEpoch}',
+            type: 'updateComponent',
+            data: {
+              'componentId': componentId,
+              'component': updatedComponent.toMap(),
+              'records': records.map((r) => r.toMap()).toList(),
+            },
+            timestamp: DateTime.now(),
+          ),
+        );
+        print('📴 Component update queued for offline sync: $componentId');
+      }
 
       return null; // Success
     } catch (e) {

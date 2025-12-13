@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:gradecalculator/components/mainscaffold.dart';
 import 'package:gradecalculator/providers/auth_provider.dart';
-import 'package:gradecalculator/components/customsnackbar.dart'; 
+import 'package:gradecalculator/components/customsnackbar.dart';
 
 import 'package:provider/provider.dart';
 
@@ -18,18 +18,18 @@ class _LoginPageState extends State<LoginPage> {
   final TextEditingController emailController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
 
-  bool _isPasswordVisible = false; 
+  bool _isPasswordVisible = false;
 
   @override
   void initState() {
     super.initState();
-    _isPasswordVisible = false; 
+    _isPasswordVisible = false;
   }
 
   @override
   Widget build(BuildContext context) {
-    final size = MediaQuery.of(context).size;
-    final height = MediaQuery.of(context).size.height;
+    final size = MediaQuery.sizeOf(context);
+    final height = size.height;
 
     return Scaffold(
       appBar: AppBar(
@@ -81,7 +81,7 @@ class _LoginPageState extends State<LoginPage> {
                   CustomTextFormField(
                     label: "Password",
                     controller: passwordController,
-                    obscureText: !_isPasswordVisible, 
+                    obscureText: !_isPasswordVisible,
                     validator: (value) {
                       if (value == null || value.trim().isEmpty) {
                         return 'Password is required';
@@ -205,7 +205,7 @@ class CustomTextFormField extends StatelessWidget {
   final TextEditingController controller;
   final bool obscureText;
   final String? Function(String?)? validator;
-  final Widget? suffixIcon; 
+  final Widget? suffixIcon;
 
   const CustomTextFormField({
     super.key,
@@ -218,7 +218,7 @@ class CustomTextFormField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final size = MediaQuery.of(context).size;
+    final size = MediaQuery.sizeOf(context);
     return TextFormField(
       controller: controller,
       obscureText: obscureText,
@@ -233,7 +233,7 @@ class CustomTextFormField extends StatelessWidget {
           color: Colors.white70,
           fontSize: size.height * 0.016,
         ),
-        suffixIcon: suffixIcon, 
+        suffixIcon: suffixIcon,
         enabledBorder: const UnderlineInputBorder(
           borderSide: BorderSide(color: Colors.white38),
         ),

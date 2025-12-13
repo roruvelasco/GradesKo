@@ -19,7 +19,7 @@ class CourseInfo extends StatefulWidget {
 class _CourseInfoState extends State<CourseInfo> {
   @override
   Widget build(BuildContext context) {
-    final size = MediaQuery.of(context).size;
+    final size = MediaQuery.sizeOf(context);
     final height = size.height;
     final width = size.width;
 
@@ -524,7 +524,9 @@ class _CourseInfoState extends State<CourseInfo> {
       );
 
       // ✅ This is the ONLY line that needed to change
-      final result = await courseProvider.deleteComponent(component.componentId);
+      final result = await courseProvider.deleteComponent(
+        component.componentId,
+      );
 
       if (mounted) {
         _hideLoadingDialog();

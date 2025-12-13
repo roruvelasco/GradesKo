@@ -4,7 +4,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:gradecalculator/components/mainscaffold.dart';
 import 'package:gradecalculator/providers/auth_provider.dart';
-import 'package:gradecalculator/components/customsnackbar.dart'; 
+import 'package:gradecalculator/components/customsnackbar.dart';
 
 import 'package:gradecalculator/screens/auth_screens/login_page.dart';
 import 'package:gradecalculator/screens/auth_screens/signup_page.dart';
@@ -35,7 +35,7 @@ class _StartingPageState extends State<StartingPage> {
 
   @override
   Widget build(BuildContext context) {
-    final Size size = MediaQuery.of(context).size;
+    final Size size = MediaQuery.sizeOf(context);
     return Scaffold(
       resizeToAvoidBottomInset: false,
       body: SafeArea(
@@ -49,7 +49,7 @@ class _StartingPageState extends State<StartingPage> {
                     crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
                       SizedBox(height: size.height * 0.15),
-                      
+
                       Center(
                         child: Image.asset(
                               'assets/logo.png',
@@ -135,7 +135,6 @@ class _StartingPageState extends State<StartingPage> {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                   
                     SizedBox(
                       width: size.width * 0.8,
                       height: size.height * 0.06,
@@ -187,7 +186,7 @@ class _StartingPageState extends State<StartingPage> {
                       ),
                     ),
                     SizedBox(height: size.height * 0.020),
-                    
+
                     SizedBox(
                       width: size.width * 0.8,
                       height: size.height * 0.06,
@@ -201,7 +200,6 @@ class _StartingPageState extends State<StartingPage> {
 
                             if (mounted) {
                               if (result == null) {
-                             
                                 Navigator.pushReplacement(
                                   context,
                                   PageRouteBuilder(
@@ -233,15 +231,14 @@ class _StartingPageState extends State<StartingPage> {
                                     },
                                   ),
                                 );
-                              } else if (result != "Sign-in cancelled by user") {
-                                
+                              } else if (result !=
+                                  "Sign-in cancelled by user") {
                                 showCustomSnackbar(
                                   context,
                                   result,
                                   duration: const Duration(seconds: 2),
                                 );
                               }
-                            
                             }
                           } catch (e) {
                             if (mounted) {

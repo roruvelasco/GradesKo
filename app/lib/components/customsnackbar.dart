@@ -30,7 +30,7 @@ class _CustomSnackbarState extends State<CustomSnackbar>
 
   @override
   Widget build(BuildContext context) {
-    final size = MediaQuery.of(context).size;
+    final size = MediaQuery.sizeOf(context);
     final double minSide = size.width < size.height ? size.width : size.height;
     return Center(
       child: AnimatedOpacity(

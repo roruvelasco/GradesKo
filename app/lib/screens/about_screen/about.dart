@@ -3,7 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:gradecalculator/providers/auth_provider.dart';
 import 'package:gradecalculator/screens/auth_screens/starting_page.dart';
 import 'package:provider/provider.dart';
-import 'package:gradecalculator/components/customsnackbar.dart'; 
+import 'package:gradecalculator/components/customsnackbar.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -15,7 +15,7 @@ class ProfileScreen extends StatefulWidget {
 class _ProfileScreenState extends State<ProfileScreen> {
   @override
   Widget build(BuildContext context) {
-    final size = MediaQuery.of(context).size;
+    final size = MediaQuery.sizeOf(context);
     final double height = size.height;
     final double width = size.width;
 
@@ -65,7 +65,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   },
                   width: size.width * 0.8,
                   height: size.height * 0.06,
-                  backgroundColor: const Color(0xFF6200EE), 
+                  backgroundColor: const Color(0xFF6200EE),
                 ),
                 Padding(
                   padding: EdgeInsets.symmetric(vertical: height * 0.015),
@@ -85,7 +85,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   onPressed: _showDeleteAccountDialog,
                   width: size.width * 0.8,
                   height: size.height * 0.06,
-                  backgroundColor: const Color(0xFFCF6C79), 
+                  backgroundColor: const Color(0xFFCF6C79),
                 ),
                 SizedBox(height: height * 0.02),
               ],
@@ -136,7 +136,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> _handleDeleteAccount() async {
-    Navigator.of(context).pop(); 
+    Navigator.of(context).pop();
 
     showDialog(
       context: context,
@@ -148,17 +148,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
       final result = await context.read<AuthProvider>().deleteAccount();
 
       if (mounted) {
-        Navigator.of(context).pop(); 
+        Navigator.of(context).pop();
 
         if (result == null) {
-          
           Navigator.pushAndRemoveUntil(
             context,
             MaterialPageRoute(builder: (context) => const StartingPage()),
             (route) => false,
           );
         } else {
-         
           showCustomSnackbar(
             context,
             result,
@@ -168,7 +166,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       }
     } catch (e) {
       if (mounted) {
-        Navigator.of(context).pop(); 
+        Navigator.of(context).pop();
         showCustomSnackbar(
           context,
           'Error deleting account: $e',

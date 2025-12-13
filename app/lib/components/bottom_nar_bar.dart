@@ -14,7 +14,7 @@ class CustomBottomNav extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final size = MediaQuery.of(context).size;
+    final size = MediaQuery.sizeOf(context);
     final height = size.height;
     final width = size.width;
     const purple = Color(0xFF6200EE);
@@ -70,11 +70,7 @@ class CustomBottomNav extends StatelessWidget {
             ),
             child: Center(
               child: IconButton(
-                icon: Icon(
-                  Icons.add,
-                  color: Colors.white,
-                  size: width * 0.07,
-                ),
+                icon: Icon(Icons.add, color: Colors.white, size: width * 0.07),
                 onPressed: () => onTabSelected(1),
                 padding: EdgeInsets.zero,
                 constraints: BoxConstraints(

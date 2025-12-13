@@ -5,7 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:gradecalculator/components/mainscaffold.dart';
 import 'package:gradecalculator/providers/auth_provider.dart';
 import 'package:provider/provider.dart';
-import 'package:gradecalculator/components/customsnackbar.dart'; 
+import 'package:gradecalculator/components/customsnackbar.dart';
 
 class SignupPage extends StatefulWidget {
   const SignupPage({super.key});
@@ -15,7 +15,7 @@ class SignupPage extends StatefulWidget {
 }
 
 class _SignupPageState extends State<SignupPage> {
-  final _formKey = GlobalKey<FormState>(); 
+  final _formKey = GlobalKey<FormState>();
   final TextEditingController emailController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
   final TextEditingController confirmPasswordController =
@@ -47,7 +47,7 @@ class _SignupPageState extends State<SignupPage> {
 
   @override
   Widget build(BuildContext context) {
-    final size = MediaQuery.of(context).size;
+    final size = MediaQuery.sizeOf(context);
     final height = size.height;
     final width = size.width;
     return Scaffold(
@@ -63,7 +63,6 @@ class _SignupPageState extends State<SignupPage> {
           child: Padding(
             padding: EdgeInsets.symmetric(horizontal: size.width * 0.08),
             child: Form(
-              
               key: _formKey,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -193,7 +192,6 @@ class _SignupPageState extends State<SignupPage> {
                     height: size.height * 0.06,
                     child: ElevatedButton(
                       onPressed: () async {
-                        
                         if (!_formKey.currentState!.validate()) {
                           return;
                         }
@@ -294,7 +292,7 @@ class CustomTextFormField extends StatelessWidget {
   final TextEditingController controller;
   final bool obscureText;
   final String? Function(String?)? validator;
-  final Widget? suffixIcon; 
+  final Widget? suffixIcon;
 
   const CustomTextFormField({
     super.key,
@@ -302,12 +300,12 @@ class CustomTextFormField extends StatelessWidget {
     required this.controller,
     this.obscureText = false,
     this.validator,
-    this.suffixIcon, 
+    this.suffixIcon,
   });
 
   @override
   Widget build(BuildContext context) {
-    final size = MediaQuery.of(context).size;
+    final size = MediaQuery.sizeOf(context);
     return Padding(
       padding: EdgeInsets.only(bottom: size.height * 0.02),
       child: TextFormField(

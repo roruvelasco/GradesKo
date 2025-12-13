@@ -1,8 +1,10 @@
 import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:gradecalculator/components/custom_text_form_field.dart';
+import 'package:gradecalculator/utils/app_text_styles.dart';
 import 'package:gradecalculator/components/mainscaffold.dart';
 import 'package:gradecalculator/models/components.dart';
 import 'package:gradecalculator/models/course.dart';
@@ -11,13 +13,13 @@ import 'package:gradecalculator/models/grading_system.dart';
 import 'package:gradecalculator/providers/course_provider.dart';
 import 'package:provider/provider.dart';
 import 'package:gradecalculator/providers/auth_provider.dart';
-import 'package:gradecalculator/components/customsnackbar.dart'; 
-import 'package:dropdown_button2/dropdown_button2.dart'; 
+import 'package:gradecalculator/components/customsnackbar.dart';
+import 'package:dropdown_button2/dropdown_button2.dart';
 
 class AddCourse extends StatefulWidget {
-  final Course? courseToEdit; 
+  final Course? courseToEdit;
 
-  const AddCourse({super.key, this.courseToEdit}); 
+  const AddCourse({super.key, this.courseToEdit});
 
   @override
   State<AddCourse> createState() => _AddCourseState();
@@ -54,7 +56,7 @@ class _AddCourseState extends State<AddCourse> {
     if (isEditMode) {
       _loadExistingData();
     } else {
-      _addGradeRange(); 
+      _addGradeRange();
     }
   }
 
@@ -141,12 +143,12 @@ class _AddCourseState extends State<AddCourse> {
                     double.tryParse(
                       _minControllers[range.rangeId]?.text ?? '',
                     ) ??
-                    0.0, 
+                    0.0,
                 max:
                     double.tryParse(
                       _maxControllers[range.rangeId]?.text ?? '',
                     ) ??
-                    0.0, 
+                    0.0,
                 grade:
                     double.tryParse(
                       _gradeControllers[range.rangeId]?.text ?? '',
@@ -176,9 +178,8 @@ class _AddCourseState extends State<AddCourse> {
     );
   }
 
-  bool get isEditMode => widget.courseToEdit != null; 
+  bool get isEditMode => widget.courseToEdit != null;
 
-  
   void _loadExistingData() {
     final course = widget.courseToEdit!;
 
@@ -247,38 +248,39 @@ class _AddCourseState extends State<AddCourse> {
         .doc(existingCourse.courseId)
         .update(updatedCourse.toMap())
         .timeout(_saveTimeout);
-    
-    
+
     await _recalculateGradesAfterEdit(existingCourse.courseId);
-    
+
     print("Course updated successfully online!");
   }
 
-  
   Future<void> _recalculateGradesAfterEdit(String courseId) async {
     try {
-      
-      final courseProvider = Provider.of<CourseProvider>(context, listen: false);
-      
-      
+      final courseProvider = Provider.of<CourseProvider>(
+        context,
+        listen: false,
+      );
+
       final updatedCourseDoc = await FirebaseFirestore.instance
           .collection('courses')
           .doc(courseId)
           .get()
           .timeout(_saveTimeout);
-      
+
       if (updatedCourseDoc.exists) {
         final updatedCourse = Course.fromMap(updatedCourseDoc.data()!);
-        
-     
+
         final components = await courseProvider.loadCourseComponents(courseId);
-        
-      
+
         courseProvider.selectCourse(updatedCourse);
-     
-        await courseProvider.updateCourseGrade(components: components.cast<Component?>());
-        
-        print("Grades recalculated with updated grading system and ${components.length} components!");
+
+        await courseProvider.updateCourseGrade(
+          components: components.cast<Component?>(),
+        );
+
+        print(
+          "Grades recalculated with updated grading system and ${components.length} components!",
+        );
       }
     } catch (e) {
       print("Error recalculating grades after course edit: $e");
@@ -329,7 +331,7 @@ class _AddCourseState extends State<AddCourse> {
   }
 
   void _dismissLoadingAndNavigate() {
-    Navigator.of(context).pop(); 
+    Navigator.of(context).pop();
     Navigator.of(context).pushAndRemoveUntil(
       MaterialPageRoute(builder: (context) => const MainScaffold()),
       (route) => false,
@@ -338,18 +340,20 @@ class _AddCourseState extends State<AddCourse> {
 
   @override
   Widget build(BuildContext context) {
-    final size = MediaQuery.of(context).size;
+    print('🔄 AddCourse.build() called');
+    final size = MediaQuery.sizeOf(context);
     final height = size.height;
     final width = size.width;
 
     return Scaffold(
+      resizeToAvoidBottomInset: true,
       appBar: _buildAppBar(),
       body: SafeArea(
         child: SingleChildScrollView(
           child: Padding(
             padding: EdgeInsets.symmetric(horizontal: width * 0.08),
             child: Form(
-              key: _formKey, 
+              key: _formKey,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -381,6 +385,7 @@ class _AddCourseState extends State<AddCourse> {
   }
 
   Widget _buildTitle(double height) {
+    print('  📝 _buildTitle() called');
     return RichText(
       text: TextSpan(
         style: GoogleFonts.poppins(
@@ -404,6 +409,7 @@ class _AddCourseState extends State<AddCourse> {
   }
 
   Widget _buildCourseFields(double height) {
+    print('  📋 _buildCourseFields() called');
     return Column(
       children: [
         CustField(
@@ -431,12 +437,11 @@ class _AddCourseState extends State<AddCourse> {
           icon: Icons.calendar_month,
           hintText: "2024-2025",
           controller: _academicYearController,
-          keyboardType: TextInputType.number, 
+          keyboardType: TextInputType.number,
           validator: (value) {
             if (value == null || value.trim().isEmpty) {
               return 'Academic year is required';
             }
-            
             if (!RegExp(r'^\d{4}-\d{4}$').hasMatch(value.trim())) {
               return 'Format: YYYY-YYYY';
             }
@@ -471,6 +476,7 @@ class _AddCourseState extends State<AddCourse> {
   }
 
   Widget _buildSemesterDropdown(double height) {
+    print('  📅 _buildSemesterDropdown() called');
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -484,6 +490,12 @@ class _AddCourseState extends State<AddCourse> {
         ),
         SizedBox(height: height * 0.005),
         DropdownButtonFormField2<String>(
+          value: selectedSemester,
+          items:
+              _semesters
+                  .map((sem) => DropdownMenuItem(value: sem, child: Text(sem)))
+                  .toList(),
+          onChanged: (value) => setState(() => selectedSemester = value),
           decoration: InputDecoration(
             prefixIcon: const Icon(Icons.calendar_month, color: Colors.black54),
             filled: true,
@@ -493,92 +505,39 @@ class _AddCourseState extends State<AddCourse> {
               horizontal: 16,
             ),
             enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(16), 
+              borderRadius: BorderRadius.circular(16),
               borderSide: const BorderSide(color: Color(0xFF121212), width: 2),
             ),
             focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(16), 
+              borderRadius: BorderRadius.circular(16),
               borderSide: const BorderSide(color: Color(0xFF6200EE), width: 2),
             ),
             border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(16), 
+              borderRadius: BorderRadius.circular(16),
               borderSide: const BorderSide(color: Color(0xFF6200EE), width: 2),
             ),
             errorBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(16), 
+              borderRadius: BorderRadius.circular(16),
               borderSide: const BorderSide(color: Color(0xFFCF6C79), width: 2),
             ),
             focusedErrorBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(16), 
+              borderRadius: BorderRadius.circular(16),
               borderSide: const BorderSide(color: Color(0xFFCF6C79), width: 2),
             ),
-            errorStyle: GoogleFonts.poppins(
-              color: const Color(0xFFCF6C79),
-              fontWeight: FontWeight.w600,
-            ),
           ),
-          value: selectedSemester,
-          hint: Text(
-            "1st Semester",
-            style: GoogleFonts.poppins(
-              color: Colors.black.withOpacity(0.3),
-              fontWeight: FontWeight.w500,
-              fontSize: height * 0.018,
-            ),
-          ),
-          items:
-              _semesters
-                  .map(
-                    (semester) => DropdownMenuItem<String>(
-                      value: semester,
-                      child: Text(
-                        semester,
-                        style: GoogleFonts.poppins(
-                          color: Colors.black87,
-                          fontSize: height * 0.018,
-                        ),
-                      ),
-                    ),
-                  )
-                  .toList(),
-          onChanged: (newValue) => setState(() => selectedSemester = newValue),
           validator: (value) {
             if (value == null || value.isEmpty) {
               return 'Semester is required';
             }
             return null;
           },
-          buttonStyleData: ButtonStyleData(
-            padding: const EdgeInsets.only(right: 8),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(16),
-              color: Colors.white,
-            ),
-          ),
-          dropdownStyleData: DropdownStyleData(
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(16),
-              color: Colors.white,
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.1),
-                  blurRadius: 8,
-                  offset: const Offset(0, 4),
-                ),
-              ],
-            ),
-            maxHeight: 200,
-          ),
-          iconStyleData: const IconStyleData(
-            icon: Icon(Icons.keyboard_arrow_down),
-            iconEnabledColor: Colors.black54,
-          ),
         ),
       ],
     );
   }
 
   Widget _buildGradingSystem(double height) {
+    print('  📊 _buildGradingSystem() called');
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -632,6 +591,9 @@ class _AddCourseState extends State<AddCourse> {
   }
 
   Widget _buildGradingTableRows(double height) {
+    print(
+      '    📑 _buildGradingTableRows() called (${_gradeRanges.length} ranges)',
+    );
     return Container(
       decoration: const BoxDecoration(
         color: Colors.transparent,
@@ -652,6 +614,7 @@ class _AddCourseState extends State<AddCourse> {
   }
 
   Widget _buildGradeRangeRow(GradeRange range, int index, double height) {
+    print('      🔢 _buildGradeRangeRow($index) called');
     return Container(
       padding: EdgeInsets.symmetric(
         horizontal: height * 0.015,
@@ -697,11 +660,12 @@ class _AddCourseState extends State<AddCourse> {
   }) {
     return TextFormField(
       controller: controller,
-      keyboardType: const TextInputType.numberWithOptions(
-        decimal: true,
-      ), // allow decimal????
+      keyboardType: const TextInputType.numberWithOptions(decimal: true),
       textAlign: TextAlign.center,
-      style: GoogleFonts.poppins(fontSize: height * 0.018),
+      style: AppTextStyles.withSize(AppTextStyles.inputText, height * 0.018),
+      autocorrect: false,
+      enableSuggestions: false,
+      maxLines: 1,
       decoration: InputDecoration(
         filled: true,
         fillColor: Colors.white,

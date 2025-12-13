@@ -1,5 +1,7 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:flutter/services.dart';
+import 'package:gradecalculator/utils/app_text_styles.dart';
 
 // this is the custom text form field I used mostly in the app
 
@@ -25,34 +27,31 @@ class CustField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (kDebugMode) {
+      debugPrint(
+        '[CustField] rebuild label=$label controller=${controller?.hashCode}',
+      );
+    }
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          label,
-          style: GoogleFonts.poppins(
-            color: Colors.white,
-            fontWeight: FontWeight.w600,
-            fontSize: 16,
-          ),
-        ),
+        Text(label, style: AppTextStyles.inputLabel),
         const SizedBox(height: 6),
         TextFormField(
           controller: controller,
           obscureText: obscureText,
           validator: validator,
           keyboardType: keyboardType,
-          style: GoogleFonts.poppins(
-            color: Colors.black,
-            fontWeight: FontWeight.w500,
-          ),
+          style: AppTextStyles.inputText,
+          // Performance optimizations
+          enableInteractiveSelection: true,
+          autocorrect: false,
+          enableSuggestions: false,
+          maxLines: 1,
           decoration: InputDecoration(
             prefixIcon: icon != null ? Icon(icon, color: Colors.black54) : null,
             hintText: hintText,
-            hintStyle: GoogleFonts.poppins(
-              color: Colors.black.withOpacity(0.3),
-              fontWeight: FontWeight.w500,
-            ),
+            hintStyle: AppTextStyles.inputHint,
             filled: true,
             fillColor: Colors.white,
             contentPadding: const EdgeInsets.symmetric(
@@ -79,10 +78,7 @@ class CustField extends StatelessWidget {
               borderRadius: BorderRadius.circular(16),
               borderSide: const BorderSide(color: Color(0xFFCF6C79), width: 2),
             ),
-            errorStyle: GoogleFonts.poppins(
-              color: const Color(0xFFCF6C79),
-              fontWeight: FontWeight.w600,
-            ),
+            errorStyle: AppTextStyles.inputError,
           ),
         ),
       ],
