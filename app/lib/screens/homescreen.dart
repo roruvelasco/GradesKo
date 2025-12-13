@@ -20,6 +20,8 @@ class Homescreen extends StatefulWidget {
 }
 
 class _HomescreenState extends State<Homescreen> {
+  String? _initializedUserId;
+
   @override
   Widget build(BuildContext context) {
     final size = MediaQuery.sizeOf(context);
@@ -27,6 +29,18 @@ class _HomescreenState extends State<Homescreen> {
     final height = size.height;
 
     final user = context.watch<AuthProvider>().appUser;
+
+    // Initialize courses stream once when user becomes available
+    if (user != null && _initializedUserId != user.userId) {
+      _initializedUserId = user.userId;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        final courseProvider = Provider.of<CourseProvider>(
+          context,
+          listen: false,
+        );
+        courseProvider.initCoursesStream(user.userId);
+      });
+    }
 
     return Scaffold(
       body: SafeArea(
@@ -107,18 +121,19 @@ class _HomescreenState extends State<Homescreen> {
   }
 
   Widget _buildCoursesStream(model.User userData, double height) {
-    return StreamBuilder<QuerySnapshot>(
-      stream:
-          FirebaseFirestore.instance
-              .collection('courses')
-              .where('userId', isEqualTo: userData.userId)
-              .snapshots(),
+    final courseProvider = Provider.of<CourseProvider>(context, listen: false);
+
+    return StreamBuilder<List<courseModel.Course>>(
+      stream: courseProvider.coursesStream,
+      initialData: courseProvider.getCoursesForUser(userData.userId),
       builder: (context, courseSnapshot) {
-        if (courseSnapshot.connectionState == ConnectionState.waiting) {
+        // Show loading only if we're waiting AND have no data
+        if (courseSnapshot.connectionState == ConnectionState.waiting &&
+            !courseSnapshot.hasData) {
           return const Center(child: CircularProgressIndicator());
         }
 
-        if (!courseSnapshot.hasData || courseSnapshot.data!.docs.isEmpty) {
+        if (!courseSnapshot.hasData || courseSnapshot.data!.isEmpty) {
           return Column(
             children: [
               SizedBox(height: height * 0.30),
@@ -135,14 +150,11 @@ class _HomescreenState extends State<Homescreen> {
           );
         }
 
-        final courses = courseSnapshot.data!.docs;
+        final courses = courseSnapshot.data!;
         final width = MediaQuery.sizeOf(context).width;
         return Column(
           children:
-              courses.map((doc) {
-                final course = courseModel.Course.fromMap(
-                  doc.data() as Map<String, dynamic>,
-                );
+              courses.map((course) {
                 return _buildCourseCard(course, height, width);
               }).toList(),
         );
@@ -344,6 +356,11 @@ class _HomescreenState extends State<Homescreen> {
   }
 
   void _showDeleteCourseDialog(courseModel.Course course) {
+    final courseDisplay =
+        course.courseName.isNotEmpty
+            ? "${course.courseCode} - ${course.courseName}"
+            : course.courseCode;
+
     showDialog(
       context: context,
       builder:
@@ -354,7 +371,7 @@ class _HomescreenState extends State<Homescreen> {
               style: GoogleFonts.poppins(color: Colors.white),
             ),
             content: Text(
-              'Are you sure you want to delete "${course.courseCode} - ${course.courseName}"? This will also delete all components and records. This action cannot be undone.',
+              'Are you sure you want to delete "$courseDisplay"? This will also delete all components and records. This action cannot be undone.',
               style: GoogleFonts.poppins(color: Colors.white70),
             ),
             actions: [
@@ -386,64 +403,24 @@ class _HomescreenState extends State<Homescreen> {
     try {
       _showLoadingDialog();
 
-      try {
-        final componentsSnapshot = await FirebaseFirestore.instance
-            .collection('components')
-            .where('courseId', isEqualTo: course.courseId)
-            .get()
-            .timeout(const Duration(seconds: 10));
+      // Use CourseProvider for offline-first deletion
+      final courseProvider = Provider.of<CourseProvider>(
+        context,
+        listen: false,
+      );
+      final result = await courseProvider.deleteCourse(course.courseId);
 
-        final batch = FirebaseFirestore.instance.batch();
+      if (mounted) {
+        _hideLoadingDialog();
 
-        for (final componentDoc in componentsSnapshot.docs) {
-          final componentId = componentDoc.id;
-
-          final recordsSnapshot = await FirebaseFirestore.instance
-              .collection('records')
-              .where('componentId', isEqualTo: componentId)
-              .get()
-              .timeout(const Duration(seconds: 10));
-
-          for (final recordDoc in recordsSnapshot.docs) {
-            batch.delete(recordDoc.reference);
-          }
-
-          batch.delete(componentDoc.reference);
-        }
-
-        batch.delete(
-          FirebaseFirestore.instance.collection('courses').doc(course.courseId),
-        );
-
-        try {
-          await batch.commit().timeout(const Duration(seconds: 10));
-          print("Course deleted successfully online!");
-        } on TimeoutException {
-          print("Course delete timed out - data cached offline");
-        } catch (e) {
-          print("Course delete completed (offline mode): $e");
-        }
-
-        if (mounted) {
-          _hideLoadingDialog();
+        if (result == null) {
           _showSuccessMessage(course.courseCode, course.courseName);
+          print(
+            "Course '${course.courseCode}' and all related data deleted successfully",
+          );
+        } else {
+          _showErrorMessage(result);
         }
-
-        print(
-          "Course '${course.courseCode}' and all related data deleted successfully",
-        );
-      } on TimeoutException {
-        if (mounted) {
-          _hideLoadingDialog();
-          _showSuccessMessage(course.courseCode, course.courseName);
-        }
-        print("Course delete timed out - data cached offline");
-      } catch (e) {
-        if (mounted) {
-          _hideLoadingDialog();
-          _showSuccessMessage(course.courseCode, course.courseName);
-        }
-        print("Course delete completed (offline mode): $e");
       }
     } catch (e) {
       if (mounted) {
@@ -467,9 +444,11 @@ class _HomescreenState extends State<Homescreen> {
   }
 
   void _showSuccessMessage(String courseCode, String courseName) {
+    final courseDisplay =
+        courseName.isNotEmpty ? "$courseCode - $courseName" : courseCode;
     showCustomSnackbar(
       context,
-      'Course "$courseCode - $courseName" deleted successfully',
+      'Course "$courseDisplay" deleted successfully',
       duration: const Duration(seconds: 3),
     );
   }

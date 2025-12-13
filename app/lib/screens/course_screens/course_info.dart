@@ -114,17 +114,46 @@ class _CourseInfoState extends State<CourseInfo> {
       gradeDisplay = "No grade yet";
     }
 
-    final headerItems = [
-      (
-        course.courseCode,
-        height * 0.04,
-        FontWeight.w800,
-        const Color(0xFF6200EE),
-      ),
-      (course.courseName, height * 0.024, FontWeight.normal, Colors.white70),
-      (course.instructor, height * 0.018, FontWeight.normal, Colors.white70),
-      (gradeDisplay, height * 0.018, FontWeight.normal, Colors.white70),
-    ];
+    // Build list of items, only including non-empty fields
+    final headerItems = <(String, double, FontWeight, Color)>[];
+
+    // Always show course code
+    headerItems.add((
+      course.courseCode,
+      height * 0.04,
+      FontWeight.w800,
+      const Color(0xFF6200EE),
+    ));
+
+    // Only show course name if not empty
+    if (course.courseName != null &&
+        course.courseName.toString().trim().isNotEmpty) {
+      headerItems.add((
+        course.courseName,
+        height * 0.024,
+        FontWeight.normal,
+        Colors.white70,
+      ));
+    }
+
+    // Only show instructor if not empty
+    if (course.instructor != null &&
+        course.instructor.toString().trim().isNotEmpty) {
+      headerItems.add((
+        course.instructor,
+        height * 0.018,
+        FontWeight.normal,
+        Colors.white70,
+      ));
+    }
+
+    // Always show grade
+    headerItems.add((
+      gradeDisplay,
+      height * 0.018,
+      FontWeight.normal,
+      Colors.white70,
+    ));
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -159,45 +188,75 @@ class _CourseInfoState extends State<CourseInfo> {
   }
 
   Widget _buildComponentsStream(String courseId, double height, double width) {
-    return StreamBuilder<QuerySnapshot>(
-      stream:
-          FirebaseFirestore.instance
-              .collection('components')
-              .where('courseId', isEqualTo: courseId)
-              .snapshots(),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting &&
-            !snapshot.hasData) {
+    return Consumer<CourseProvider>(
+      builder: (context, courseProvider, child) {
+        // First check if we have components in the provider (works offline)
+        final providerComponents =
+            courseProvider.selectedCourse?.components ?? [];
+
+        // Filter out null components
+        final validComponents =
+            providerComponents.whereType<Component>().toList();
+
+        // If we have components from the provider, use them directly
+        if (validComponents.isNotEmpty) {
+          print(
+            '📱 UI: Rendering ${validComponents.length} components from provider',
+          );
           return Column(
-            children: [
-              SizedBox(height: height * 0.15),
-              const Center(child: CircularProgressIndicator()),
-              SizedBox(height: height * 0.02),
-              Center(
-                child: Text(
-                  "Loading components...",
-                  style: GoogleFonts.poppins(
-                    color: Colors.white70,
-                    fontSize: height * 0.016,
-                  ),
-                ),
-              ),
-            ],
+            children:
+                validComponents
+                    .map(
+                      (component) =>
+                          _buildComponentCard(component, height, width),
+                    )
+                    .toList(),
           );
         }
 
-        if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-          return _buildEmptyState(height);
-        }
+        // Otherwise, fall back to StreamBuilder for initial load
+        print('📱 UI: No components in provider, using StreamBuilder');
+        return StreamBuilder<QuerySnapshot>(
+          stream:
+              FirebaseFirestore.instance
+                  .collection('components')
+                  .where('courseId', isEqualTo: courseId)
+                  .snapshots(),
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting &&
+                !snapshot.hasData) {
+              return Column(
+                children: [
+                  SizedBox(height: height * 0.15),
+                  const Center(child: CircularProgressIndicator()),
+                  SizedBox(height: height * 0.02),
+                  Center(
+                    child: Text(
+                      "Loading components...",
+                      style: GoogleFonts.poppins(
+                        color: Colors.white70,
+                        fontSize: height * 0.016,
+                      ),
+                    ),
+                  ),
+                ],
+              );
+            }
 
-        return Column(
-          children:
-              snapshot.data!.docs.map((doc) {
-                final component = Component.fromMap(
-                  doc.data() as Map<String, dynamic>,
-                );
-                return _buildComponentCard(component, height, width);
-              }).toList(),
+            if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+              return _buildEmptyState(height);
+            }
+
+            return Column(
+              children:
+                  snapshot.data!.docs.map((doc) {
+                    final component = Component.fromMap(
+                      doc.data() as Map<String, dynamic>,
+                    );
+                    return _buildComponentCard(component, height, width);
+                  }).toList(),
+            );
+          },
         );
       },
     );
@@ -257,6 +316,21 @@ class _CourseInfoState extends State<CourseInfo> {
   }
 
   Widget _buildRecordsList(Component component, double height) {
+    // Check if we have records in the component (offline support)
+    if (component.records != null && component.records!.isNotEmpty) {
+      final recordsList = component.records!;
+      final (totalScore, totalPossible) = _calculateTotals(recordsList);
+
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          ...recordsList.map((record) => _buildRecordRow(record, height)),
+          if (recordsList.isNotEmpty)
+            _buildTotalSection(totalScore, totalPossible, height, component),
+        ],
+      );
+    }
+
     return StreamBuilder<QuerySnapshot>(
       stream:
           FirebaseFirestore.instance

@@ -32,11 +32,7 @@ class OfflineIndicator extends StatelessWidget {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(
-                Icons.cloud_off,
-                color: Colors.white,
-                size: 16,
-              ),
+              const Icon(Icons.cloud_off, color: Colors.white, size: 16),
               const SizedBox(width: 8),
               Text(
                 'Offline Mode',
@@ -49,10 +45,7 @@ class OfflineIndicator extends StatelessWidget {
               const SizedBox(width: 4),
               Text(
                 '• Changes will sync when online',
-                style: GoogleFonts.poppins(
-                  color: Colors.white70,
-                  fontSize: 11,
-                ),
+                style: GoogleFonts.poppins(color: Colors.white70, fontSize: 11),
               ),
             ],
           ),
@@ -86,11 +79,7 @@ class CompactOfflineIndicator extends StatelessWidget {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(
-                Icons.cloud_off,
-                color: Colors.white,
-                size: 14,
-              ),
+              const Icon(Icons.cloud_off, color: Colors.white, size: 14),
               const SizedBox(width: 4),
               Text(
                 'Offline',
@@ -103,7 +92,10 @@ class CompactOfflineIndicator extends StatelessWidget {
               if (pendingCount > 0) ...[
                 const SizedBox(width: 4),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 6,
+                    vertical: 2,
+                  ),
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(8),
