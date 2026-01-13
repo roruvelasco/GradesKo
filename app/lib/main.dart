@@ -113,10 +113,9 @@ class MyApp extends StatelessWidget {
         scaffoldBackgroundColor: const Color(0xFF121212),
         appBarTheme: const AppBarTheme(backgroundColor: Color(0xFF121212)),
         textTheme: GoogleFonts.poppinsTextTheme(),
-        // Input decoration theme to optimize text fields globally
+        // Note: Individual screens override input decoration as needed
+        // Auth screens use dark theme, other screens use light theme
         inputDecorationTheme: InputDecorationTheme(
-          filled: true,
-          fillColor: Colors.white,
           contentPadding: const EdgeInsets.symmetric(
             vertical: 16,
             horizontal: 12,
