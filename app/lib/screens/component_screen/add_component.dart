@@ -51,11 +51,35 @@ class _AddComponentState extends State<AddComponent> {
     componentNameController.text = component.componentName;
     weightController.text = component.weight.toString();
 
-    final recordsSnapshot =
-        await FirebaseFirestore.instance
-            .collection('records')
-            .where('componentId', isEqualTo: component.componentId)
-            .get();
+    // OFFLINE-FIRST: Try to use embedded records first (from offline creation/update)
+    List<Records> existingRecords = [];
+
+    if (component.records != null && component.records!.isNotEmpty) {
+      // Use embedded records (available offline)
+      print(
+        '📦 Loading ${component.records!.length} records from component (offline-ready)',
+      );
+      existingRecords = component.records!;
+    } else {
+      // Fallback: Try to load from Firestore (only works when online)
+      print('📡 Attempting to load records from Firestore...');
+      try {
+        final recordsSnapshot =
+            await FirebaseFirestore.instance
+                .collection('records')
+                .where('componentId', isEqualTo: component.componentId)
+                .get();
+
+        existingRecords =
+            recordsSnapshot.docs
+                .map((doc) => Records.fromMap(doc.data()))
+                .toList();
+        print('✅ Loaded ${existingRecords.length} records from Firestore');
+      } catch (e) {
+        print('⚠️ Failed to load records from Firestore: $e');
+        existingRecords = [];
+      }
+    }
 
     setState(() {
       records.clear();
@@ -63,12 +87,12 @@ class _AddComponentState extends State<AddComponent> {
       scoreControllers.clear();
       totalControllers.clear();
 
-      if (recordsSnapshot.docs.isEmpty) {
+      if (existingRecords.isEmpty) {
+        print('⚠️ No records found, adding empty record');
         _addRecord();
       } else {
         // Load existing records
-        for (final doc in recordsSnapshot.docs) {
-          final record = Records.fromMap(doc.data());
+        for (final record in existingRecords) {
           records.add(record);
 
           final recordId = record.recordId;
@@ -80,6 +104,7 @@ class _AddComponentState extends State<AddComponent> {
             text: record.total.toString(),
           );
         }
+        print('✅ Loaded ${records.length} records into edit form');
       }
     });
   }
@@ -146,6 +171,7 @@ class _AddComponentState extends State<AddComponent> {
   }
 
   Future<void> _saveComponentToFirestore() async {
+    print('💾 Starting component save...');
     final courseProvider = Provider.of<CourseProvider>(context, listen: false);
 
     final recordsData =
@@ -162,21 +188,25 @@ class _AddComponentState extends State<AddComponent> {
 
     try {
       if (isEditMode) {
+        print('✏️ Updating component: ${widget.componentToEdit!.componentId}');
         await courseProvider.updateComponentWithRecords(
           componentId: widget.componentToEdit!.componentId,
           componentName: componentNameController.text,
           weight: double.tryParse(weightController.text) ?? 0.0,
           recordsData: recordsData,
         );
+        print('✅ Component update completed');
       } else {
+        print('➕ Creating new component');
         await courseProvider.createComponentWithRecords(
           componentName: componentNameController.text,
           weight: double.tryParse(weightController.text) ?? 0.0,
           recordsData: recordsData,
         );
+        print('✅ Component creation completed');
       }
     } catch (e) {
-      print("Error saving component: $e");
+      print("❌ Error saving component: $e");
       rethrow;
     }
   }
@@ -539,6 +569,7 @@ class _AddComponentState extends State<AddComponent> {
               return;
             }
 
+            print('🔄 Showing loading dialog...');
             showDialog(
               context: context,
               barrierDismissible: false,
@@ -546,11 +577,30 @@ class _AddComponentState extends State<AddComponent> {
                   (context) => const Center(child: CircularProgressIndicator()),
             );
 
-            await _saveComponentToFirestore();
+            try {
+              print('💾 Calling _saveComponentToFirestore...');
+              await _saveComponentToFirestore();
+              print('✅ _saveComponentToFirestore completed');
 
-            if (mounted) {
-              Navigator.of(context).pop();
-              Navigator.of(context).pop();
+              if (mounted) {
+                print('📱 Widget is mounted, closing dialogs...');
+                Navigator.of(context).pop(); // Close loading dialog
+                print('✅ Loading dialog closed');
+                Navigator.of(context).pop(); // Close component screen
+                print('✅ Component screen closed');
+              } else {
+                print('⚠️ Widget is NOT mounted, cannot close dialogs');
+              }
+            } catch (e) {
+              print("❌ Error in save button: $e");
+              if (mounted) {
+                Navigator.of(context).pop(); // Close loading dialog
+                showCustomSnackbar(
+                  context,
+                  'Error saving component: $e',
+                  duration: const Duration(seconds: 3),
+                );
+              }
             }
           },
           style: ElevatedButton.styleFrom(

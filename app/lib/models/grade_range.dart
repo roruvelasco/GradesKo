@@ -1,8 +1,22 @@
+import 'package:hive/hive.dart';
+
+part 'grade_range.g.dart';
+
+@HiveType(typeId: 4)
 class GradeRange {
+  @HiveField(0)
   final String rangeId;
+
+  @HiveField(1)
   final String gradingSystemId;
+
+  @HiveField(2)
   final double min;
+
+  @HiveField(3)
   final double max;
+
+  @HiveField(4)
   final double grade;
 
   GradeRange({

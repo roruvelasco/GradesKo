@@ -13,7 +13,7 @@ class ConnectivityService extends ChangeNotifier {
 
   final Connectivity _connectivity = Connectivity();
   StreamSubscription<List<ConnectivityResult>>? _subscription;
-  
+
   bool _isOnline = true;
   bool get isOnline => _isOnline;
 
@@ -27,20 +27,21 @@ class ConnectivityService extends ChangeNotifier {
     });
 
     // Listen for connectivity changes
-    _subscription = _connectivity.onConnectivityChanged.listen(
-      (List<ConnectivityResult> results) {
-        _updateConnectionStatus(results);
-      },
-    );
+    _subscription = _connectivity.onConnectivityChanged.listen((
+      List<ConnectivityResult> results,
+    ) {
+      _updateConnectionStatus(results);
+    });
   }
 
   void _updateConnectionStatus(List<ConnectivityResult> results) {
     // Consider online if any connection is available
     final wasOnline = _isOnline;
-    _isOnline = results.any((result) => 
-      result == ConnectivityResult.mobile ||
-      result == ConnectivityResult.wifi ||
-      result == ConnectivityResult.ethernet
+    _isOnline = results.any(
+      (result) =>
+          result == ConnectivityResult.mobile ||
+          result == ConnectivityResult.wifi ||
+          result == ConnectivityResult.ethernet,
     );
 
     if (wasOnline != _isOnline) {

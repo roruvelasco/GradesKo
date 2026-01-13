@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:gradecalculator/components/mainscaffold.dart';
+import 'package:gradecalculator/components/auth_text_field.dart';
+import 'package:gradecalculator/constants/app_constants.dart';
 import 'package:gradecalculator/providers/auth_provider.dart';
 import 'package:gradecalculator/components/customsnackbar.dart';
-
 import 'package:provider/provider.dart';
 
 class LoginPage extends StatefulWidget {
@@ -21,9 +22,10 @@ class _LoginPageState extends State<LoginPage> {
   bool _isPasswordVisible = false;
 
   @override
-  void initState() {
-    super.initState();
-    _isPasswordVisible = false;
+  void dispose() {
+    emailController.dispose();
+    passwordController.dispose();
+    super.dispose();
   }
 
   @override
@@ -36,7 +38,7 @@ class _LoginPageState extends State<LoginPage> {
         automaticallyImplyLeading: true,
         backgroundColor: Colors.transparent,
         elevation: 0,
-        iconTheme: IconThemeData(color: Color(0xFF6200EE)),
+        iconTheme: const IconThemeData(color: Color(0xFF6200EE)),
       ),
       resizeToAvoidBottomInset: true,
       body: SafeArea(
@@ -50,7 +52,7 @@ class _LoginPageState extends State<LoginPage> {
                 children: [
                   SizedBox(height: height * 0.05),
                   Text(
-                    "Welcome back!",
+                    AppStrings.welcomeBack,
                     style: GoogleFonts.poppins(
                       fontSize: size.height * 0.04,
                       fontWeight: FontWeight.bold,
@@ -59,7 +61,7 @@ class _LoginPageState extends State<LoginPage> {
                   ),
                   SizedBox(height: height * 0.02),
                   Text(
-                    "Please login to continue",
+                    AppStrings.pleaseLoginToContinue,
                     style: GoogleFonts.poppins(
                       fontSize: size.height * 0.02,
                       color: Colors.white70,
@@ -67,27 +69,20 @@ class _LoginPageState extends State<LoginPage> {
                   ),
                   SizedBox(height: height * 0.05),
 
-                  CustomTextFormField(
-                    label: "Email",
+                  // Email field with proper validation
+                  AuthTextField(
+                    label: AppStrings.email,
                     controller: emailController,
-                    validator: (value) {
-                      if (value == null || value.trim().isEmpty) {
-                        return 'Email is required';
-                      }
-                      return null;
-                    },
+                    keyboardType: TextInputType.emailAddress,
+                    validator: Validators.email,
                   ),
 
-                  CustomTextFormField(
-                    label: "Password",
+                  // Password field
+                  AuthTextField(
+                    label: AppStrings.password,
                     controller: passwordController,
                     obscureText: !_isPasswordVisible,
-                    validator: (value) {
-                      if (value == null || value.trim().isEmpty) {
-                        return 'Password is required';
-                      }
-                      return null;
-                    },
+                    validator: Validators.password,
                     suffixIcon: IconButton(
                       icon: Icon(
                         _isPasswordVisible
@@ -103,85 +98,22 @@ class _LoginPageState extends State<LoginPage> {
                     ),
                   ),
 
-                  SizedBox(height: size.height * 0.02),
-
-                  SizedBox(height: size.height * 0.06),
+                  SizedBox(height: size.height * 0.08),
 
                   SizedBox(
                     width: size.width * 0.8,
                     height: size.height * 0.06,
                     child: ElevatedButton(
-                      onPressed: () async {
-                        // Validate form first
-                        if (!_formKey.currentState!.validate()) {
-                          return;
-                        }
-
-                        final email = emailController.text.trim();
-                        final password = passwordController.text.trim();
-
-                        showDialog(
-                          context: context,
-                          barrierDismissible: false,
-                          builder:
-                              (context) => const Center(
-                                child: CircularProgressIndicator(),
-                              ),
-                        );
-
-                        String? result = await context
-                            .read<AuthProvider>()
-                            .signIn(email, password);
-
-                        if (context.mounted) Navigator.pop(context);
-
-                        if (result != null) {
-                          showCustomSnackbar(
-                            context,
-                            result,
-                            duration: const Duration(seconds: 2),
-                          );
-                        } else {
-                          // Success: Go to homescreen
-                          Navigator.pushReplacement(
-                            context,
-                            PageRouteBuilder(
-                              pageBuilder:
-                                  (context, animation, secondaryAnimation) =>
-                                      const MainScaffold(),
-                              transitionsBuilder: (
-                                context,
-                                animation,
-                                secondaryAnimation,
-                                child,
-                              ) {
-                                const begin = Offset(1.0, 0.0);
-                                const end = Offset.zero;
-                                const curve = Curves.easeInOut;
-
-                                var tween = Tween(
-                                  begin: begin,
-                                  end: end,
-                                ).chain(CurveTween(curve: curve));
-
-                                return SlideTransition(
-                                  position: animation.drive(tween),
-                                  child: child,
-                                );
-                              },
-                            ),
-                          );
-                        }
-                      },
+                      onPressed: _handleLogin,
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: Color(0xFF6200EE),
+                        backgroundColor: const Color(0xFF6200EE),
                         elevation: 8,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(50),
                         ),
                       ),
                       child: Text(
-                        "Log In",
+                        AppStrings.logIn,
                         style: GoogleFonts.poppins(
                           fontSize: size.height * 0.020,
                           color: Colors.white,
@@ -198,59 +130,66 @@ class _LoginPageState extends State<LoginPage> {
       ),
     );
   }
-}
 
-class CustomTextFormField extends StatelessWidget {
-  final String label;
-  final TextEditingController controller;
-  final bool obscureText;
-  final String? Function(String?)? validator;
-  final Widget? suffixIcon;
+  /// Handles login form submission
+  Future<void> _handleLogin() async {
+    // Validate form first
+    if (!_formKey.currentState!.validate()) {
+      return;
+    }
 
-  const CustomTextFormField({
-    super.key,
-    required this.label,
-    required this.controller,
-    this.obscureText = false,
-    this.validator,
-    this.suffixIcon,
-  });
+    final email = emailController.text.trim();
+    final password = passwordController.text.trim();
 
-  @override
-  Widget build(BuildContext context) {
-    final size = MediaQuery.sizeOf(context);
-    return TextFormField(
-      controller: controller,
-      obscureText: obscureText,
-      validator: validator,
-      style: GoogleFonts.poppins(
-        color: Colors.white,
-        fontSize: size.height * 0.018,
-      ),
-      decoration: InputDecoration(
-        labelText: label,
-        labelStyle: GoogleFonts.poppins(
-          color: Colors.white70,
-          fontSize: size.height * 0.016,
-        ),
-        suffixIcon: suffixIcon,
-        enabledBorder: const UnderlineInputBorder(
-          borderSide: BorderSide(color: Colors.white38),
-        ),
-        focusedBorder: const UnderlineInputBorder(
-          borderSide: BorderSide(color: Color(0xFF6200EE), width: 2),
-        ),
-        errorBorder: const UnderlineInputBorder(
-          borderSide: BorderSide(color: Color(0xFFCF6C79), width: 2),
-        ),
-        focusedErrorBorder: const UnderlineInputBorder(
-          borderSide: BorderSide(color: Color(0xFFCF6C79), width: 2),
-        ),
-        errorStyle: GoogleFonts.poppins(
-          color: const Color(0xFFCF6C79),
-          fontWeight: FontWeight.w600,
-        ),
+    // Show loading dialog
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const Center(
+        child: CircularProgressIndicator(),
       ),
     );
+
+    String? result = await context.read<AuthProvider>().signIn(email, password);
+
+    if (context.mounted) Navigator.pop(context);
+
+    if (result != null) {
+      // Show error message
+      showCustomSnackbar(
+        context,
+        result,
+        duration: const Duration(seconds: 2),
+      );
+    } else {
+      // Success: Navigate to home screen
+      Navigator.pushReplacement(
+        context,
+        PageRouteBuilder(
+          pageBuilder: (context, animation, secondaryAnimation) =>
+              const MainScaffold(),
+          transitionsBuilder: (
+            context,
+            animation,
+            secondaryAnimation,
+            child,
+          ) {
+            const begin = Offset(1.0, 0.0);
+            const end = Offset.zero;
+            const curve = Curves.easeInOut;
+
+            var tween = Tween(
+              begin: begin,
+              end: end,
+            ).chain(CurveTween(curve: curve));
+
+            return SlideTransition(
+              position: animation.drive(tween),
+              child: child,
+            );
+          },
+        ),
+      );
+    }
   }
 }

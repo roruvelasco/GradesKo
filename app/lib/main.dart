@@ -12,6 +12,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:gradecalculator/utils/app_text_styles.dart';
 import 'package:gradecalculator/services/connectivity_service.dart';
 import 'package:gradecalculator/services/offline_queue_service.dart';
+import 'package:gradecalculator/services/local_storage_service.dart';
 import 'firebase_options.dart';
 
 void main() async {
@@ -19,6 +20,12 @@ void main() async {
 
   // Load environment variables
   await dotenv.load(fileName: ".env");
+
+  // Initialize Hive for local storage (OFFLINE-FIRST)
+  print('📦 Initializing local storage...');
+  final localStorage = LocalStorageService();
+  await localStorage.initialize();
+  print('✅ Local storage initialized');
 
   // Initialize connectivity service
   final connectivityService = ConnectivityService();
@@ -59,15 +66,28 @@ void main() async {
     }
   }
 
+  // Configure Firebase Firestore persistence
   FirebaseFirestore.instance.settings = const Settings(
     persistenceEnabled: true,
   );
 
-  // Initialize offline queue service
-  final offlineQueue = OfflineQueueService();
-  
-  print('🚀 App initialized - Connectivity: ${connectivityService.isOnline ? "Online" : "Offline"}');
-  print('📦 Pending sync operations: ${offlineQueue.pendingCount}');
+  // Initialize offline queue service (triggers auto-sync if online)
+  OfflineQueueService(); // Initialize singleton
+
+  // Display initialization summary
+  final storageStats = localStorage.getStorageStats();
+  print('═══════════════════════════════════════');
+  print('🚀 GradesKo App Initialized');
+  print('═══════════════════════════════════════');
+  print(
+    '📡 Connectivity: ${connectivityService.isOnline ? "Online ✅" : "Offline 📴"}',
+  );
+  print('📦 Local Storage Stats:');
+  print('   • Courses: ${storageStats['courses']}');
+  print('   • Components: ${storageStats['components']}');
+  print('   • Records: ${storageStats['records']}');
+  print('   • Queued Operations: ${storageStats['queuedOperations']}');
+  print('═══════════════════════════════════════');
 
   runApp(
     MultiProvider(
@@ -93,10 +113,9 @@ class MyApp extends StatelessWidget {
         scaffoldBackgroundColor: const Color(0xFF121212),
         appBarTheme: const AppBarTheme(backgroundColor: Color(0xFF121212)),
         textTheme: GoogleFonts.poppinsTextTheme(),
-        // Input decoration theme to optimize text fields globally
+        // Note: Individual screens override input decoration as needed
+        // Auth screens use dark theme, other screens use light theme
         inputDecorationTheme: InputDecorationTheme(
-          filled: true,
-          fillColor: Colors.white,
           contentPadding: const EdgeInsets.symmetric(
             vertical: 16,
             horizontal: 12,
